@@ -5,7 +5,7 @@
 
 __author__ = 'Clarence'
 
-import math
+import math, basic
 
 class FuncType(object):
     def __init__(self, name, expr, flags):
@@ -17,14 +17,8 @@ class FuncType(object):
         return self._name == other._name and self._flags == other._flags
 
     def __call__(self, *args):
-        if len(args) >= 1:
-            are_functions = True
-            for arg in args:
-                if not isinstance(arg, Function):
-                    are_functions = False
-                    break
-            if are_functions:
-                return Function(self, *args)
+        if len(args) >= 1 and all(isinstance(arg, Function) for arg in args):
+            return Function(self, *args)
 
     """ ABOUT 'FLAGS'
             argument-count  precedence  associativity   fix-style
@@ -87,9 +81,9 @@ class Function(object):
     7.25
 
     """
-    def __init__(self, arg=None, func1=None, func2=None):
+    def __init__(self, arg=None, *funcs):
 
-        if func1 == None and func2 == None:
+        if len(funcs) == 0:
             if arg == None:
                 self._type = Identity('x')
             elif isinstance(arg, str):
@@ -99,15 +93,8 @@ class Function(object):
         else:
             self._type = arg
 
-        if isinstance(func1, Function):
-            self._func1 = func1
-        elif func1 != None:
-            self._func1 = Function(func1)
-
-        if isinstance(func2, Function):
-            self._func2 = func2
-        elif func2 != None:
-            self._func2 = Function(func2)
+        self._funcs = tuple(f if isinstance(f, Function) else Function(f)\
+                for f in funcs)
 
     def name(self):
         return self._type._name
@@ -144,7 +131,7 @@ class Function(object):
         elif self.is_const():
             return str(self())
 
-        f1 = self._func1
+        f1 = self._funcs[0]
         if self.argc() == 1: 
             cond = self.fix() != 3 and (\
                         (f1.is_const() and f1() < 0)\
@@ -163,7 +150,7 @@ class Function(object):
                         % self.name())
 
         else: # self.argc() == 2:
-            f2 = self._func2
+            f2 = self._funcs[1]
             cond1 = f1.prec() <= self.prec()
             cond2 = (f2.is_const() and f2() < 0)\
                     or f2._type == NEG\
@@ -193,9 +180,9 @@ class Function(object):
                         raise SyntaxError("too few arguments for '%s'"\
                                 % self.name())
             if self.argc() >= 1:
-                build_dict(self._func1)
+                build_dict(self._funcs[0])
             if self.argc() >= 2:
-                build_dict(self._func2)
+                build_dict(self._funcs[1])
 
         def value(self):
             if self.is_const():
@@ -205,10 +192,7 @@ class Function(object):
                     return kw[self.name()]
                 else:
                     raise ValueError("'%s' needs a value!" % self.name())
-            if self.argc() == 1:
-                return self._type._expr(value(self._func1))
-            if self.argc() == 2:
-                return self._type._expr(value(self._func1), value(self._func2))
+            return self._type._expr(*(value(f) for f in self._funcs))
 
         build_dict(self)
         return value(self)
@@ -253,13 +237,8 @@ class Function(object):
         return Function(POW, other, self)
 
 def var(*args):
-    are_strs = True
-    for arg in args:
-        if not isinstance(arg, str):
-            are_strs = False
-            break
-    if are_strs:
-        return tuple([Function(s) for s in args])
+    if all(isinstance(s, str) for s in args):
+        return tuple(Function(s) for s in args)
 
 if __name__ == '__main__':
     import doctest
