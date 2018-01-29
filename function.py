@@ -78,6 +78,8 @@ class Function(object):
     >>> atan(x + abs(1+x**2))
     atan(x + |1 + x^2|)
     >>> z = x**2 + 3 * y + x*y
+    >>> z
+    x^2 + 3y + xy
     >>> z(0.5, 2)
     7.25
 
@@ -136,38 +138,40 @@ class Function(object):
             return str(self())
 
         f1 = self._funcs[0]
-        if self.argc() == 1: 
-            cond = self.fix() != 3 and (\
-                        (f1.is_const() and f1() < 0)\
-                        or f1._type == NEG\
+        if self.argc() == 1:
+            # par: parenthesis
+            par = self.fix() != 3 and (\
+                        (f1.is_const() and f1() < 0) or f1._type == NEG\
                         or f1.prec() < self.prec()\
                     )
         
             if self.fix() == 0: # pre-fix
-                return self.name() + pad(self.name().isalpha() and not cond) + put(f1, cond)
+                return self.name() + pad(self.name().isalpha() and not par) + put(f1, par)
             elif self.fix() == 2: # post-fix
-                return put(f1, cond) + self.name()
+                return put(f1, par) + self.name()
             elif self.fix() == 3: # both-side
-                return put(f1, cond).join(self.name().split())
+                return put(f1, par).join(self.name().split())
             else:
-                raise ValueError("unary function '%s' has infix property!"
-                        % self.name())
+                raise ValueError("unary function '%s' has infix property!" % self.name())
 
         elif self.argc() == 2:
             f2 = self._funcs[1]
-            cond1 = f1.prec() <= self.prec()
-            cond2 = (f2.is_const() and f2() < 0)\
-                    or f2._type == NEG\
-                    or f2.prec() <= self.prec()
+            par1 = (f1.prec() <= self.prec()) if self.assoc() else (f1.prec() < self.prec())
+            par2 = (f2.is_const() and f2() < 0) or f2._type == NEG\
+                    or ((f2.prec() < self.prec()) if self.assoc() else (f2.prec() <= self.prec()))
 
             if self.fix() == 0: # pre-fix
-                return self.name() + '(' + put(f1, cond1) + ', '\
-                        + put(f2, cond2) + ')'
+                return self.name() + '(' + put(f1, par1) + ', ' + put(f2, par2) + ')'
             elif self.fix() == 1: # in-fix
-                return put(f1, cond1) + self.name() + put(f2, cond2)
+                if self._type == MUL: # specials for multiply
+                    show_mul_op = f2.is_const()\
+                            or f1.is_identity() and len(f1.name()) > 1\
+                            or f2.is_identity() and len(f2.name()) > 1
+                    if not show_mul_op:
+                        return put(f1, par1) + put(f2, par2)
+                return put(f1, par1) + self.name() + put(f2, par2)
             else: # post-fix
-                return '(' + put(f1, cond1) + ', ' + put(f2, cond2) + ')'\
-                        + self.name()
+                return '(' + put(f1, par1) + ', ' + put(f2, par2) + ')' + self.name()
         else:
             return self.name() + '(' + ', '.join(str(self._funcs)) + ')'
 
