@@ -72,29 +72,24 @@ class Newton(object):
             raise ValueError('The size of two lists are not equal!')
 
         self.x = x_list             # warning: self.x is read-only
-        self.n = len(self.x)
-        self.diff = [[yi] for yi in y_list]
-        self._compute_diff(self.diff, self.x)
+        self.diff = [[y] for y in y_list]
+        self._compute_diff(1, len(self.x))
 
-    def _compute_diff(self, d, x):
+    def _compute_diff(self, begin, end):
         """diff table
         x0 y0
         x1 y1 [x0,x1]
         x2 y2 [x1,x2] [x0,x1,x2]
         x3 y3 [x2,x3] [x1,x2,x3] [x0,x1,x2,x3]
         """
-        for i in range(1, self.n):
+        d = self.diff
+        x = self.x
+        for i in range(begin, end):
             for j in range(i):
                 d[i].append((d[i][j] - d[i-1][j]) / (x[i] - x[i-j-1]))
 
-    def __call__(self, s):
-        ret = self.diff[-1][-1]
-        for i in range(self.n-2, -1, -1):
-            ret = ret * (s - self.x[i]) + self.diff[i][i]
-        return ret
-
     def insert(self, x_list, y_list):
-        """insert new data 
+        """insert new data to the end
         """
         from collections import Iterable
         if not isinstance(x_list, Iterable):
@@ -104,23 +99,25 @@ class Newton(object):
         if (len(x_list) != len(y_list)):
             raise ValueError('The size of two lists are not equal!')
 
-        d = self.diff
-        x = self.x
-        for i in range(len(x_list)):
-            x.append(x_list[i])
-            d.append([y_list[i]])
-            for j in range(self.n + i):
-                d[-1].append((d[-1][j] - d[-2][j]) / (x[-1] - x[-2-j]))
-        self.n += len(x_list)
+        n = len(self.x)
+        self.x += x_list
+        self.diff += [[y] for y in y_list]
+        self._compute_diff(n, len(self.x))
 
-    def erase(self, n):
-        """erase n of the existing data
+    def erase(self, n=1):
+        """erase n of the existing data from the end
         """
-        if len(self.diff) < n:
+        if len(self.x) < n:
             raise IndexError('Does not have enough data to erase!')
         for k in range(n):
             self.diff.pop()
-        self.n -= n
+            self.x.pop()
+
+    def __call__(self, s):
+        ret = self.diff[-1][-1]
+        for i in range(len(self.x)-2, -1, -1):
+            ret = ret * (s - self.x[i]) + self.diff[i][i]
+        return ret
 
 if __name__ == '__main__':
     import doctest
