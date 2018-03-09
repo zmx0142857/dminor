@@ -82,6 +82,9 @@ class Function(object):
     x^2 + 3y + xy
     >>> z(0.5, 2)
     7.25
+    >>> y = sin(x)
+    >>> y.numint(0, 3.14159)
+    1.9999999831300628
 
     """
     def __init__(self, arg=None, *funcs):
@@ -245,6 +248,15 @@ class Function(object):
 
     def __rpow__(self, other):
         return POW(other, self)
+
+    def numint(self, a, b, partitions=1e4):
+        ret = 0
+        dx = (b-a) / partitions
+        x = a
+        while x <= b:
+            ret += self(x)
+            x += dx
+        return ret * dx
 
 def var(*args):
     if all(isinstance(s, str) for s in args):

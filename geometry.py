@@ -280,6 +280,11 @@ class Line(object):
 
         self.name = name if not name.isspace() else ''
 
+    def __eq__(self, other):
+        return isinstance(other, Line)\
+                and Point(self.a, self.b, self.c)\
+                ** Point(other.a, other.b, other.c) == zero(3)
+
     def __str__(self):
 
         def item(coef, sym='', is_first=False):
@@ -342,7 +347,7 @@ Y_AXIS = Line(1, 0, 0);
 
 # non-member functions--------------------------------------------------
 
-def origin(n=2):
+def zero(n=2):
     return Point(0 for i in range(n))
 
 def distance(p, q):
@@ -384,6 +389,19 @@ def _l_(L1, L2):
     if not all(isinstance(L, Line) for L in (L1, L2)):
         raise TypeError('_l_() expects two lines')
     return L1.normal_vec() * L2.normal_vec() == 0
+
+def relationship(L1, L2):
+    """Return relationship between two lines"""
+    if not all(isinstance(L, Line) for L in (L1, L2)):
+        raise TypeError('relationship() expects two lines')
+    if L1 == L2:
+        return 'identical'
+    elif ll(L1, L2):
+        return 'parallel'
+    elif _l_(L1, L2):
+        return 'perpendicular'
+    else:
+        return 'intercept'
 
 if __name__ == '__main__':
     import doctest
