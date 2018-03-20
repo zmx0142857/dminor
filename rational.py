@@ -1,11 +1,12 @@
-"""Provides basic rational calculation.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-"""
+"""basic rational calculation"""
 
-__author__ = 'Clarence'
+__author__ = 'Clarence Zhuo'
 
 class Rat(object):
-    '''
+    """
     Doctest:
 
     >>> r1 = Rat(1,2)
@@ -47,63 +48,62 @@ class Rat(object):
     >>> from math import pi
     >>> approx(pi)
     355/113
-    '''
-    def __init__(self, first = 0, second = 1):
+    """
+    def __init__(self, arg1=0, arg2=1):
 
-        if isinstance(first, int):
-            self._num = first
-            # second must be positive int:
-            self._den = _check(second, type = 'den')
+        if isinstance(arg1, int):
+            self._num = arg1
+            # arg2 must be positive int:
+            self._den = _check(arg2, key='den')
 
-        elif isinstance(first, Rat):
-            # second must be Rat, int or float and second != 0:
-            _check(second, type = 'Rat')
-            tmp = first / second
+        elif isinstance(arg1, Rat):
+            # arg2 must be Rat, int or float and arg2 != 0:
+            _check(arg2, key='Rat')
+            tmp = arg1 / arg2
             self._num = tmp._num
             self._den = tmp._den
 
-        elif isinstance(first, float):
-            # second must be Rat, int or float and second != 0:
-            _check(second, type = 'float')
-            tmp = first / second
+        elif isinstance(arg1, float):
+            # arg2 must be Rat, int or float and arg2 != 0:
+            _check(arg2, key='float')
+            tmp = arg1 / arg2
             if isinstance(tmp, Rat):
                 self._num = tmp._num
                 self._den = tmp._den
             else: # isinstance(tmp, float):
                 self._num = tmp
                 self._den = 1
-
                 while self._num != int(self._num):
                     self._num *= 10
                     self._den *= 10
                 self._num = int(self._num)
                 self._self_reduce()
 
-        elif isinstance(first, str):
+        elif isinstance(arg1, str):
             #  you may TRY STR.PARTITION in this part
-            # second must be 1:
-            self._den = _check(second, type = 'str')
-            index = first.find('/')
+            # arg2 must be 1:
+            self._den = _check(arg2, key='str')
+            index = arg1.find('/')
             try:
                 # found '/':
                 if index != -1:
-                    self._num = int(first[:index])
+                    self._num = int(arg1[:index])
 
                     # '/' is not the last character in the str:
-                    if index + 1 != len(first):
-                        self._den = int(first[index+1:])
+                    if index + 1 != len(arg1):
+                        self._den = int(arg1[index+1:])
 
-                elif '.' in first:
-                    tmp = Rat(float(first))
+                elif '.' in arg1:
+                    tmp = Rat(float(arg1))
                     self._num, self._den = tmp._num, tmp._den
 
                 else:
-                    self._num = int(first)
+                    self._num = int(arg1)
 
             except ValueError as err:
-                raise ValueError("Counldn't convert '%s' to Rat." % first)
+                raise ValueError("Counldn't convert '%s' to Rat." % arg1)
         else:
-            raise NotImplementedError("Couldn't convert %s to Rat." % type(first))
+            raise NotImplementedError("Couldn't convert %s to Rat." % type(arg1))
 
     # getters and setters--------------------------------------
 
@@ -117,11 +117,11 @@ class Rat(object):
 
     @num.setter
     def num(self, value):
-        self._num = _check(value, type = 'num')
+        self._num = _check(value, key='num')
 
     @den.setter
     def den(self, value):
-        self._den = _check(value, type = 'den')
+        self._den = _check(value, key='den')
 
     # specials-------------------------------------------------
 
@@ -138,6 +138,13 @@ class Rat(object):
     # float()
     def __float__(self):
         return self._num / self._den
+
+    def to_float(self, length=15):
+        num = self._num
+        exp = quantity_level(float(self))
+        while num < self._den:
+            num *= 10
+        return num * (10**length) // self._den, exp
 
     # int()
     def __int__(self): # round up to 0
@@ -259,25 +266,25 @@ class Rat(object):
 
 # class ends---------------------------------------------------
 
-def _check(value, *, type):
-    if type == 'num':
+def _check(value, *, key):
+    if key == 'num':
         if not isinstance(value, int):
             raise TypeError('Numerator must be int.')
 
-    elif type == 'den':
+    elif key == 'den':
         if not isinstance(value, int) or value <= 0:
             raise ValueError('Denominator must be positive '
                              'int.')
 
-    elif type == 'Rat' or type == 'float':
+    elif key == 'Rat' or key == 'float':
         if not isinstance(value, (int, float, Rat)):
             raise TypeError('The second argument must be '
                             'int, float or Rat when the first '
-                            'argument is %s.' % type)
+                            'argument is %s.' % key)
         elif value == 0:
             raise ZeroDivisionError('The second argument must '
                                     'be non-zero.')
-    elif type == 'str':
+    elif key == 'str':
         if value != 1:
             raise ValueError('The second argument must be 1 '
                              'when the first argument is str.')
@@ -406,6 +413,12 @@ def Bernoulli(n):
         for j in range(i, 0, -1):
             L[j-1] = j * (L[j-1] - L[j])
         yield L[0]
+
+def quantity_level(n):
+    import math
+    if n == 0:
+        return 0
+    return math.floor(math.log10(abs(n))) + 1
 
 if __name__ == '__main__':
     import doctest
