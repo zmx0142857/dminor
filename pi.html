@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+
+<title class="nonu">pi 的算法及误差分析</title>
+<meta charset="utf-8" />
+
+<link rel="stylesheet" type="text/css" href="css/math.css" />
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=AM_HTMLorMML-full"></script>
+<script src="mathjax/MathJax.js?config=AM_HTMLorMML-full"></script>
+<script src="js/asciimathml.js"></script>
+
+</head>
+
+<body>
+
+<h2 class="nonu">my_first_pi</h2>
+
+<p>	利用 `arcsin (1/2) = pi/6` 和 `arcsin x` 的泰勒展式来计算 `pi` 的值.
+	首先由级数
+	<span class="formula">
+		`(1-x^2)^(-1/2) = sum_(n=0)^oo ((-1/2),(n)) (-x^2)^n`
+	</span>
+
+	两端积分得
+	<span class="formula">
+		` arcsin x = sum_(n=0)^oo ((-1/2),(n)) ((-1)^n x^(2n+1)) / (2n+1)
+		= sum_(n=0)^oo ((2n)! x^(2n+1)) / ((2^n n!)^2 (2n+1))`.
+	</span>
+
+	再由幂级数与泰勒展式的关系得
+	<span class="formula">
+		` arcsin x = sum_(k=0)^n ((2k)! x^(2k+1)) / ((2^k k!)^2 (2k+1))
+		+ R(x)`,
+	</span>
+
+	因为
+	<span class="formula">`{:
+	(	(arcsin x)^((n+1))	,=	((1-x^2)^(-1/2))^((n))
+	),(						,=	((-1/2),(n)) n! (-2x)^n (1-x^2)^(-1/2-n)
+	),(						,=	((2n)!) / (2^n n!) x^n (1-x^2)^(-1/2-n).
+	):}`</span>
+
+	所以余项
+	<span class="formula">
+		` R(x) = ((arcsin x)^((2n+3)) |_(xi)) / ((2n+3)!) x^(2n+3)
+		= ( (4n+4)! xi^(2n+2) x^(2n+3) )
+		  / ( (2n+2)!(2n+3)! 2^(2n+2) (1-xi^2)^(2n+5/2) ).`
+	</span>
+
+	其中 `0 lt xi lt 1/2`. 将 `xi = 1/2` 代入,
+	<span class="formula">
+		`R(1/2)	lt ((4n+4)!) / ((2n+2)!(2n+3)! 2^(2n+2) 3^(2n+5/2))`<br/>
+		`~ sqrt((4n+4)/(2 pi (2n+2)(2n+3)))
+			((4n+4)^(4n+4) e) / ((2n+2)^(2n+2) (2n+3)^(2n+3)
+			2^(2n+2) 3^(2n+5/2) )`
+		`= 1/sqrt(3pi(2n+3)) ((4n+4)^(2n+2) e) / ((2n+3)^(2n+3) 3^(2n+2))`
+		`lt e / ((2n+3)^(3/2) (3/2)^(2n+2) sqrt (3pi))`.
+	</span>
+
+	为了使上式小于 `10^-m`, 只需
+	<span class="formula">
+		`(2n+3)^(3/2) (3/2)^(2n+2) sqrt(3pi) gt 10^m`,
+	</span>
+
+	两端取 (10 为底的) 对数得
+	<span class="formula">
+		`3/2 log(2n+3) + (2n+2) log(3/2) + 1/2 log(3pi) - log e gt m`.
+	</span>
+
+	舍去次要项,最后得到
+	<span class="formula">
+		`n gt m / (2 log (3/2))`.
+	</span>
+
+	这就是将 `pi` 计算到小数点后 m 位所需的项数.
+</p>
+
+</body>
+
+<script src="js/random-color.js"></script>
+<script src="js/main.js"></script>
+
+</html>
