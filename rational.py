@@ -34,7 +34,7 @@ class Rat(object):
     >>> r10 < ()
     Traceback (most recent call last):
         ...
-    NotImplementedError
+    TypeError: unorderable types: Rat() < tuple()
 
     >>> Rat(1,2) + Rat(-1,3)
     1/6
@@ -50,7 +50,12 @@ class Rat(object):
     355/113
     """
     def __init__(self, arg1=0, arg2=1):
-
+        """
+        Rat(int a=0, positive-int b=1) -> a/b
+        Rat(Rat a, non-zero-value b=1) -> a/b
+        Rat(float a, non-zero-value b=1) -> a/b
+        Rat(str)
+        """
         if isinstance(arg1, int):
             self._num = arg1
             # arg2 must be positive int:
@@ -59,7 +64,7 @@ class Rat(object):
         elif isinstance(arg1, Rat):
             # arg2 must be Rat, int or float and arg2 != 0:
             _check(arg2, key='Rat')
-            tmp = arg1 / arg2
+            tmp = arg1 / arg2 if arg2 != 1 else arg1
             self._num = tmp._num
             self._den = tmp._den
 
@@ -144,7 +149,7 @@ class Rat(object):
         exp = quantity_level(float(self))
         while num < self._den:
             num *= 10
-        return num * (10**length) // self._den, exp
+        return '0.%se%s' % (num * (10**length) // self._den, exp)
 
     # int()
     def __int__(self): # round up to 0
@@ -155,7 +160,7 @@ class Rat(object):
 
     # len()
     def __len__(self):
-        return len(self.__str__())
+        return len(str(self))
 
     # abs()
     def __abs__(self):
@@ -177,18 +182,29 @@ class Rat(object):
 
     # operator <
     def __lt__(self, other):
-        try:
-            other = Rat(other)
-        except Exception:
-            raise NotImplementedError
+        if not isinstance(other, Rat):
+            try:
+                other = Rat(other)
+            except Exception:
+                return NotImplemented
         return self._num * other._den < self._den * other._num
 
     # operator >
     def __gt__(self, other):
+        if not isinstance(other, Rat):
+            try:
+                other = Rat(other)
+            except Exception:
+                return NotImplemented
         return other < self
 
     # operator <=
     def __le__(self, other):
+        if not isinstance(other, Rat):
+            try:
+                other = Rat(other)
+            except Exception:
+                return NotImplemented
         return not other < self
 
     # operator >=
@@ -205,31 +221,31 @@ class Rat(object):
 
     # operator +
     def __add__(self, other):
-        return _do_add(self, Rat(other), lambda x,y: x+y)
+        return _do_operation(self, other, '+')
 
     def __radd__(self, other):
-        return _do_add(Rat(other), self, lambda x,y: x+y)
+        return _do_operation(other, self, '+')
 
     # operator -
     def __sub__(self, other):
-        return _do_add(self, Rat(other), lambda x,y: x-y)
+        return _do_operation(self, other, '-')
 
     def __rsub__(self, other):
-        return _do_add(Rat(other), self, lambda x,y: x-y)
+        return _do_operation(other, self, '-')
 
     # operator *
     def __mul__(self, other):
-        return _do_mul(self, Rat(other))
+        return _do_operation(self, other, '*')
 
     def __rmul__(self, other):
-        return _do_mul(Rat(other), self)
+        return _do_operation(other, self, '*')
 
     # operator /
     def __truediv__(self, other):
-        return _do_truediv(self, Rat(other))
+        return _do_operation(self, other, '/')
 
     def __rtruediv__(self, other):
-        return _do_truediv(Rat(other), self)
+        return _do_operation(other, self, '/')
 
     # operator **
     def __pow__(self, other):
@@ -248,15 +264,15 @@ class Rat(object):
     def reduce(self):
         return Rat(self._num, self._den)._self_reduce()
 
-    def delux_str(self, pnt = True):
-        """Returns a delux view of the faction :)
-
-        """
+    def delux_str(self, pnt=True):
+        """a delux view of the faction :)"""
         if self._den == 1:
             ret = '%s' % self._num
         else:
             width = max( len(str(self._num)), len(str(self._den)) ) + 2
-            ret = str(self._num).center(width) + '\n'  + ''.ljust(width, '-') + '\n' + str(self._den).center(width)
+            ret = str(self._num).center(width) + '\n'\
+                    + ''.ljust(width, '-') + '\n'\
+                    + str(self._den).center(width)
 
         if pnt:
             print(ret)
@@ -267,14 +283,16 @@ class Rat(object):
 # class ends---------------------------------------------------
 
 def _check(value, *, key):
+    """helper function for __init__()"""
     if key == 'num':
         if not isinstance(value, int):
-            raise TypeError('Numerator must be int.')
+            raise TypeError('Numerator must be int, %s given.' %\
+                            type(value))
 
     elif key == 'den':
         if not isinstance(value, int) or value <= 0:
             raise ValueError('Denominator must be positive '
-                             'int.')
+                             'int, %s given' % value)
 
     elif key == 'Rat' or key == 'float':
         if not isinstance(value, (int, float, Rat)):
@@ -287,7 +305,8 @@ def _check(value, *, key):
     elif key == 'str':
         if value != 1:
             raise ValueError('The second argument must be 1 '
-                             'when the first argument is str.')
+                             'when the first argument is str, '
+                             '%s given.' % value)
     return value
 
 def _gcd(a, b):
@@ -329,21 +348,36 @@ def gcd(*args):
         r0, c0, c1 = -r0, -c0, -c1
     print(r0, '=', c0, '*', args[0], '+', c1, '*', args[1])
 
-def _do_add(self, other, func):
-    d = _gcd(self._den, other._den)
-    ret = Rat(func(other._den // d * self._num, self._den // d * other._num), self._den // d * other._den)
-    return ret._self_reduce()
+def _do_operation(lhs, rhs, method):
+    """helper function for method __add__, __radd__, __sub__ and so on"""
+    try:
+        if not isinstance(lhs, Rat):
+            lhs = Rat(lhs)
+        if not isinstance(rhs, Rat):
+            rhs = Rat(rhs)
+    except Exception:
+        return NotImplemented
 
-def _do_mul(self, other):
-    lhs = Rat(self._num, other._den)._self_reduce()
-    rhs = Rat(other._num, self._den)._self_reduce()
-    return Rat(lhs._num * rhs._num, lhs._den * rhs._den)._self_reduce()
-
-def _do_truediv(self, other):
-    if other._num < 0:
-        return _do_mul(self, Rat(-other._den, -other._num))
+    if method == '+' or method == '-':
+        d = _gcd(lhs._den, rhs._den)
+        if method == '+':
+            func = lambda x,y: x+y
+        else:
+            func = lambda x,y: x-y
+        ret = Rat(func(rhs._den // d * lhs._num, lhs._den // d * rhs._num),\
+                lhs._den // d * rhs._den)
+        return ret._self_reduce()
+    elif method == '*':
+        r1 = Rat(lhs._num, rhs._den)._self_reduce()
+        r2 = Rat(rhs._num, lhs._den)._self_reduce()
+        return Rat(r1._num * r2._num, r1._den * r2._den)._self_reduce()
+    elif method == '/':
+        if rhs._num < 0:
+            return _do_operation(lhs, Rat(-rhs._den, -rhs._num), '*')
+        else:
+            return _do_operation(lhs, Rat(rhs._den, rhs._num), '*')
     else:
-        return _do_mul(self, Rat(other._den, other._num))
+        return NotImplemented
 
 def _continued_frac(L):
     if len(L) == 1:
