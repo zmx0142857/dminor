@@ -7,6 +7,7 @@ rational number, matrix, polynomial, interpolation and recently (Mar
 2018), a linear programming tool.
 
 I know I'm new to computer programming and my code sucks, but anyway it's
-getting better little by little. This project is still under developing and (I hope) a lot of new features will be added to it in the future.
+getting better little by little. This project is still under developing
+and (I hope) a lot of new features will be added to it in the future.
 
 Mar 31 2018
