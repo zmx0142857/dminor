@@ -1,8 +1,9 @@
-"""
-Deal with matrix, of course.
-"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-__author__ = 'Clarence'
+"""Deal with matrices."""
+
+__author__ = 'Clarence Zhuo'
 
 from rational import Rat
 
@@ -28,10 +29,16 @@ class Mat(object):
     >>> -1 in m
     True
 
-    >>> m = Mat('')
-    >>> m
+    >>> Mat('''
+    ... 1; 1
+    ... 0 1
+    ... 0 0 1; 3''')
+    1 0 0 1
+    0 1 0 0
+    0 0 1 3
+    >>> Mat('')
     <empty matrix>
-    >>> m.size()
+    >>> Mat('').size()
     (0, 0)
 
     >>> m = E(2)
@@ -186,12 +193,26 @@ class Mat(object):
             # ['']
             # >>> ''.split()
             # []
+            b = []
+            append_b = False
             for row_str in init.split('\n'):
                 row = []
-                for elem_str in row_str.split():
+                coef = row_str.rsplit(sep=';', maxsplit=1)
+                for elem_str in coef[0].split():
                     row.append(Rat(elem_str))
-                cols = max(cols, len(row))
                 self._data.append(row)
+                cols = max(cols, len(row))
+                if len(coef) == 2:
+                    append_b = True
+                    b.append(Rat(coef[1]))
+                else:
+                    b.append(Rat(0))
+
+            self.resize(rows, cols)
+            if append_b:
+                for r in range(self.rows()):
+                    self._data[r].append(b[r])
+                cols += 1
 
         elif callable(init):
 
@@ -324,7 +345,7 @@ class Mat(object):
 
         Returns True if self is empty.
         """
-        return self._data == [[]]
+        return self._data == [] or self._data == [[]]
 
     def size(self, index = None):
         """
@@ -365,18 +386,22 @@ class Mat(object):
         """
         return self.rows() == self.cols()
 
-    def resize(self, rows, cols, trunc = False):
+    def resize(self, rows=None, cols=None, trunc=False, fill=Rat(0)):
         """
         -> None
 
         Resize self, truncate it if trunc == True.
         """
+        if rows == None:
+            rows = self.rows()
+        if cols == None:
+            cols = self.cols()
         while self.rows() < rows:
             self._data.append([])
 
         for row in self._data:
             while len(row) < cols:
-                row.append(Rat(0))
+                row.append(fill)
 
         if trunc:
             while self.rows() > rows:
@@ -401,7 +426,7 @@ class Mat(object):
         """
         return Mat(lambda i,j: self[j][i], self.cols(), self.rows())
 
-    def tr(self):
+    def trace(self):
         """
         -> Rat
 
@@ -749,6 +774,40 @@ class Mat(object):
         else:
             return Mat(lambda j,i: ret[i][j+other.rows()], self.rows(), self.cols())
 
+    def insert(self, iterable, *, row=None, col=None):
+        """
+        -> None
+
+        Insert a copy of the iterable as a row or a column of self.
+        iterable is truncated if too long, padded with zeros if too short.
+        """
+        if row != None and col == None:
+            L = list(iterable)
+            resize(L, self.cols())
+            self._data.insert(row, L)
+        elif col != None and row == None:
+            L = list(iterable)
+            resize(L, self.rows())
+            for i, row in enumerate(self):
+                row.insert(col, L[i])
+        else:
+            raise ValueError("One and only one of 'row' and 'col' is "
+                             "required.")
+
+    def pop(self, *, row=None, col=None):
+        """
+        -> None
+
+        Remove a row/column of self.
+        """
+        if row != None and col == None:
+            self._data.pop(row)
+        elif col != None and row == None:
+            for row in self:
+                row.pop(col)
+        else:
+            raise ValueError("One and only one of 'row' and 'col' is "
+                             "required.")
 
 # class ends---------------------------------------------------
 
@@ -789,6 +848,23 @@ def E(size):
     """
     return diag(1, rows = size)
 
+def Kronecker(i, j):
+    """
+    -> Rat
+
+    Kronecker delta = 1, if i == j
+                      0, if i != j
+    """
+    return Rat(1) if i == j else Rat(0)
+
+def e(size, i):
+    """
+    -> list of Rat
+
+    Returns a list, which is the ith column of E.
+    """
+    return [Kronecker(i, j) for j in range(size)]
+
 def trans(mat):
     """
     -> Mat
@@ -797,13 +873,13 @@ def trans(mat):
     """
     return mat.trans()
 
-def tr(mat):
+def trace(mat):
     """
     -> Rat
 
     Returns trace of mat, mat should be square.
     """
-    return mat.tr()
+    return mat.trace()
 
 def det(mat):
     """
@@ -820,6 +896,17 @@ def inv(mat):
     Returns inverse of mat, mat should be square.
     """
     return mat.inv()
+
+def resize(L, size, fill=Rat(0)):
+    """
+    -> None
+
+    Resize a list. Fill blanks with fill.
+    """
+    length = size - len(L)
+    L.extend(fill for i in range(length))
+    while len(L) > size:
+        L.pop()
 
 if __name__ == '__main__':
     import doctest
