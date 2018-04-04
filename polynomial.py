@@ -4,7 +4,6 @@
 """
 Deal with polynomials.
 Comming soon:
-    init by interpolation formula;
     Bernoulli summation algorithm - p.sum()
 """
 
@@ -58,6 +57,13 @@ class Poly(object):
     0
     >>> Poly(-1, 0, -2, 1).diff()
     -3x^2 - 2
+    >>> divmod(Poly(1, -1)**5, Poly(1, -2)**4)
+    (x + 3.0, 10.0x^3 - 50.0x^2 + 85.0x - 49.0)
+
+    >>> Poly(1, 0, 0, sym='t')(Poly(1, -1))
+    x^2 - 2x + 1
+    >>> Poly(1, -1)(Poly(1, 0, 0, sym='t'))
+    t^2 - 1
     """
     def __init__(self, *args, sym='x', reverse=True):
         """
@@ -185,7 +191,7 @@ class Poly(object):
         return self
     
     def __neg__(self):
-        return Poly(-c for c in self._coef)
+        return Poly((-c for c in self._coef), sym=self._sym)
     
     def __add__(self, other):
         return _do_operation(self, other, '+')
@@ -218,7 +224,7 @@ class Poly(object):
         if not isinstance(other, int) or other < 0:
             raise TypeError('arg2 for __pow__() must be '
                             'non-negative integer!')
-        ret = Poly(1)
+        ret = Poly(1, sym=self._sym)
         for i in range(other):
             ret *= self
         return ret
@@ -259,8 +265,9 @@ class Poly(object):
     def diff(self):
         """Derivate of polynomial."""
         if len(self._coef) == 1:
-            return Poly(0)
-        return Poly(self[i] * i for i in range(1, len(self._coef)))
+            return Poly(0, sym=self._sym)
+        return Poly((self[i] * i for i in range(1, len(self._coef))),\
+                sym=self._sym)
 
 # class ends---------------------------------------------------
 
@@ -280,24 +287,47 @@ def _do_operation(lhs, rhs, method):
         else:
             func = lambda x,y: x-y
         length = max(len(lhs._coef), len(rhs._coef))
-        return Poly(func(lhs[i], rhs[i]) for i in range(length))
+        return Poly((func(lhs[i], rhs[i]) for i in range(length)),\
+                sym=lhs._sym)
 
     elif method == '*':
         if lhs.iszero() or rhs.iszero():
-            return Poly(0)
-        # 0 <= i < len(lhs._coef)
-        # 0 <= j-i < len(rhs._coef) <---> j-len(rhs._coef) < i <= j
-        # hence max(0, j-len(rhs)+1) <= i < min(j+1, len(lhs._coef))
+            return Poly(0, sym=lhs._sym)
+        """
+        0 <= i < len(lhs._coef)
+        0 <= j-i < len(rhs._coef) <---> j-len(rhs._coef) < i <= j
+        hence max(0, j-len(rhs)+1) <= i < min(j+1, len(lhs._coef))
+        """
         lenl, lenr = len(lhs._coef), len(rhs._coef)
-        return Poly(sum(lhs[i] * rhs[j-i] for i in range(max(0, j-lenr+1),\
-                min(j+1, lenl))) for j in range(lenl+lenr) )
+        return Poly((sum(lhs[i] * rhs[j-i] for i in range(max(0, j-lenr+1),\
+                min(j+1, lenl))) for j in range(lenl+lenr)), sym=lhs._sym )
 
     elif method == '/%':
-        pass
+        if rhs.iszero():
+            raise ZeroDivisionError
+        elif lhs.deg() < rhs.deg():
+            return Poly(0, sym=lhs._sym), lhs
+        """ considering M / N: first have their coef reversed, so N0 is
+        the highest degree coef for N
+                    N0                  N1      N2
+        q0 = c0/N0  c0 = M0             q0N1    q0N2
+        q1 = c1/N0  c1 = M1-q0N1        q1N1    q1N2
+        q2 = c2/N0  c2 = M2-q0N2-q1N1   q2N1    q2N2
+        """
+        m, n = lhs.deg(), rhs.deg()
+        q = []
+        for i in range(m-n+1):
+            q.append( lhs[m-i] - sum(q[j] * rhs[n-i+j] for j in\
+                range(max(0, i-n), i)) )
+            q[i] /= rhs[n]
+        r = (lhs[i] - sum(q[m-n-i+j] * rhs[j] for j in range(max(0, n+i-m),\
+                i+1)) for i in range(n))
+        return Poly(reversed(q), sym=lhs._sym), Poly(r, sym=lhs._sym)
+
     elif method == '//':
-        pass
+        return _do_operation(lhs, rhs, '/%')[0]
     elif method == '%':
-        pass
+        return _do_operation(lhs, rhs, '/%')[1]
     else:
         return NotImplemented
 
