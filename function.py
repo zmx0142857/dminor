@@ -2,12 +2,36 @@
 # -*- coding: utf-8 -*-
 
 """A Function class representing mathematical functions"""
+"""
+Operator precedence in python and 'function.py':
+
+0. lambda                       if - else
+1. expr1 if cond else expr2     or
+2. or                           and
+3. and                          not
+4. not                          in, not in, is, is not,
+                                <, <=, >, >=, !=, ==
+5. in, not in, is, is not,      |
+   <, <=, >, >=, !=, ==
+6. |                            ^
+7. ^                            &
+8. &                            << >>
+9. << >>                        binary + -
+10. binary + -                  * @ / // %
+11. * @ / // %                  +x, -x, ~x
+12. +x, -x, ~x                  sin... atanh, log
+13. **                          **, !
+14. await                       [], [:], call(), obj.attr
+15. [], [:], call(), obj.attr   (), ||, |_ _|, |~ ~|
+16. (expr)
+"""
+
 
 __author__ = 'Clarence'
 
 import math, basic
 
-class FuncType(object):
+class FuncNode(object):
     def __init__(self, name, expr, flags):
         self._name = name
         self._expr = expr
@@ -27,39 +51,39 @@ class FuncType(object):
                                                         2 for postfix
                                                         3 for bothside
 
-    * FuncType with flags == 0x138 is an identity function, like x, y, ...
-    * FuncType with flags == 0x038 is a const number, like 1, 3.14, ...
+    * FuncNode with flags == 0x138 is an identity function, like x, y, ...
+    * FuncNode with flags == 0x038 is a const number, like 1, 3.14, ...
     """
 
 def Const(val):
-    return FuncType('const', lambda: val, 0x38)
+    return FuncNode('const', lambda: val, 0x38)
 
 def Identity(s):
-    return FuncType(s, None, 0x138)
+    return FuncNode(s, None, 0x138)
 
-NEG   = FuncType('-',     lambda x: -x,              0x58) # 001011000, 0130
-ABS   = FuncType('| |',   abs,                       0x7b) # 001111011, 0173
-ceil  = FuncType('|~ ~|', math.ceil,                 0x7b)
-floor = FuncType('|_ _|', math.floor,                0x7b)
-sin   = FuncType('sin',   math.sin,                  0x68) # 001101000, 0150
-cos   = FuncType('cos',   math.cos,                  0x68)
-tan   = FuncType('tan',   math.tan,                  0x68)
-sinh  = FuncType('sinh',  math.sinh,                 0x68)
-cosh  = FuncType('cosh',  math.cosh,                 0x68)
-tanh  = FuncType('tanh',  math.tanh,                 0x68)
-asin  = FuncType('asin',  math.asin,                 0x68)
-acos  = FuncType('acos',  math.acos,                 0x68)
-atan  = FuncType('atan',  math.atan,                 0x68)
-asinh = FuncType('asinh', math.asinh,                0x68)
-acosh = FuncType('acosh', math.acosh,                0x68)
-atanh = FuncType('atanh', math.atanh,                0x68)
-fac   = FuncType('!',     lambda n: math.gamma(n+1), 0x72) # 001110010, 0162
-ADD   = FuncType(' + ',   lambda x, y: x+y,          0x89) # 010001001, 0211
-SUB   = FuncType(' - ',   lambda x, y: x-y,          0x89)
-MUL   = FuncType(' * ',   lambda x, y: x*y,          0x91) # 010010001, 0221
-DIV   = FuncType(' / ',   lambda x, y: x/y,          0x91)
-LOG   = FuncType('log',   math.log,                  0xa0) # 010100000, 0240
-POW   = FuncType('^',     lambda x, y: x**y,         0xb5) # 010110101, 0265
+NEG   = FuncNode('-',     lambda x: -x,              0x58) # 001011000, 0130
+ABS   = FuncNode('| |',   abs,                       0x7b) # 001111011, 0173
+ceil  = FuncNode('|~ ~|', math.ceil,                 0x7b)
+floor = FuncNode('|_ _|', math.floor,                0x7b)
+sin   = FuncNode('sin',   math.sin,                  0x68) # 001101000, 0150
+cos   = FuncNode('cos',   math.cos,                  0x68)
+tan   = FuncNode('tan',   math.tan,                  0x68)
+sinh  = FuncNode('sinh',  math.sinh,                 0x68)
+cosh  = FuncNode('cosh',  math.cosh,                 0x68)
+tanh  = FuncNode('tanh',  math.tanh,                 0x68)
+asin  = FuncNode('asin',  math.asin,                 0x68)
+acos  = FuncNode('acos',  math.acos,                 0x68)
+atan  = FuncNode('atan',  math.atan,                 0x68)
+asinh = FuncNode('asinh', math.asinh,                0x68)
+acosh = FuncNode('acosh', math.acosh,                0x68)
+atanh = FuncNode('atanh', math.atanh,                0x68)
+fac   = FuncNode('!',     lambda n: math.gamma(n+1), 0x72) # 001110010, 0162
+ADD   = FuncNode(' + ',   lambda x, y: x+y,          0x89) # 010001001, 0211
+SUB   = FuncNode(' - ',   lambda x, y: x-y,          0x89)
+MUL   = FuncNode(' * ',   lambda x, y: x*y,          0x91) # 010010001, 0221
+DIV   = FuncNode(' / ',   lambda x, y: x/y,          0x91)
+LOG   = FuncNode('log',   math.log,                  0xa0) # 010100000, 0240
+POW   = FuncNode('^',     lambda x, y: x**y,         0xb5) # 010110101, 0265
 
 class Function(object):
     """

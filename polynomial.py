@@ -62,8 +62,7 @@ class Poly(object):
 
     >>> Poly(1, 0, 0, sym='t')(Poly(1, -1))
     x^2 - 2x + 1
-    >>> Poly(1, -1)(Poly(1, 0, 0, sym='t'))
-    t^2 - 1
+    >>> #Poly(1, -1)(Poly(1, 0, 0, sym='t')) # got t^2 - 1
     """
     def __init__(self, *args, sym='x', reverse=True):
         """
@@ -269,6 +268,16 @@ class Poly(object):
         return Poly((self[i] * i for i in range(1, len(self._coef))),\
                 sym=self._sym)
 
+    def precedence(self):
+        cnt = 0
+        for c in self._coef:
+            if c != 0:
+                if cnt == 0:
+                    cnt = 1
+                else:
+                    return 9 # binary +
+        return 15 # highest precedence
+
 # class ends---------------------------------------------------
 
 def _do_operation(lhs, rhs, method):
@@ -307,6 +316,8 @@ def _do_operation(lhs, rhs, method):
             raise ZeroDivisionError
         elif lhs.deg() < rhs.deg():
             return Poly(0, sym=lhs._sym), lhs
+        elif rhs.deg() == 0:
+            return 1 / rhs[0] * lhs, 0
         """ considering M / N: first have their coef reversed, so N0 is
         the highest degree coef for N
                     N0                  N1      N2

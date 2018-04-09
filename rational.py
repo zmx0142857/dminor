@@ -107,6 +107,9 @@ class Rat(object):
 
             except ValueError as err:
                 raise ValueError("Counldn't convert '%s' to Rat." % arg1)
+        elif isinstance(arg1, type(arg2)) or isinstance(arg2, type(arg1)):
+            self._num = arg1
+            self._den = arg2
         else:
             raise NotImplementedError("Couldn't convert %s to Rat." % type(arg1))
 
@@ -132,10 +135,20 @@ class Rat(object):
 
     # print()
     def __str__(self):
+
+        def par(obj): # parenthesis
+            try:
+                if obj.precedence() < self.precedence():
+                    return "(%s)" % obj
+                else:
+                    return "%s" % obj
+            except AttributeError:
+                return "%s" % obj
+
         if self._den == 1:
-            return '%d' % self._num
+            return '%s' % self._num
         else:
-            return '%d/%d' % (self._num, self._den)
+            return par(self._num) + '/' +  par(self._den)
 
     # repr()
     __repr__ = __str__
@@ -158,9 +171,12 @@ class Rat(object):
         else:
             return -( -self._num // self._den )
 
-    # len()
-    def __len__(self):
-        return len(str(self))
+    # len(): deprecated
+    #def __len__(self):
+    #    return len(str(self))
+
+    def __call__(self, value):
+        return self._num(value) / self._den(value)
 
     # abs()
     def __abs__(self):
@@ -262,9 +278,9 @@ class Rat(object):
         return self
 
     def reduce(self):
-        return Rat(self._num, self._den)._self_reduce()
+        return self._self_reduce()
 
-    def delux_str(self, pnt=True):
+    def str2d(self, pnt=True):
         """a delux view of the faction :)"""
         if self._den == 1:
             ret = '%s' % self._num
@@ -279,6 +295,10 @@ class Rat(object):
             return None
         else:
             return ret
+
+    @staticmethod
+    def precedence():
+        return 10
 
 # class ends---------------------------------------------------
 
@@ -310,7 +330,10 @@ def _check(value, *, key):
     return value
 
 def _gcd(a, b):
-    a, b = abs(a), abs(b)
+    try:
+        a, b = abs(a), abs(b)
+    except TypeError:
+        pass
     while b != 0:
         a, b = b, a % b # same as: c = a % b; a = b; b = c
     return a
