@@ -216,6 +216,8 @@ class Poly(object):
     def __floordiv__(self, other):
         return _do_operation(self, other, '//')
 
+    __truediv__ = __floordiv__
+
     def __mod__(self, other):
         return _do_operation(self, other, '%')
 

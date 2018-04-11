@@ -47,6 +47,43 @@ class Lagrange(object):
 
     __repr__ = __str__
 
+class Neville(object):
+
+    """Build Neville interpolation polynomial and compute its value.
+    The formula is:
+
+    P(x,i,j) = ((x_j - x)*P(x,i,j-1) + (x - x_i)*P(x,i+1,j)) / (x_j - x_i)
+
+    >>> x0 = [-1, 0, 0.5, 1]
+    >>> y0 = [-1.5, 0, 0, 0.5]
+    >>> f = Neville(x0, y0)
+    >>> f(-1), f(0), f(0.5), f(1)
+    (-1.5, 0.0, 0.0, 0.5)
+    >>> f
+    x^3 - 0.5x^2
+    """
+    def __init__(self, x_list, y_list):
+
+        if (len(x_list) != len(y_list)):
+            raise ValueError('The size of two lists are not equal!')
+
+        self.x = x_list             # warning: self.x is read-only
+        self.y = y_list
+        self.n = len(self.x)
+
+    def __call__(self, s):
+        x = self.x
+        y = self.y.copy()
+        for i in range(1, self.n):
+            for j in range(self.n-i):
+                y[j] = ((x[j+i]-s)*y[j] + (s-x[j])*y[j+1]) / (x[j+i] - x[j])
+        return y[0]
+
+    def __str__(self):
+        return str(self(polynomial.Poly()))
+
+    __repr__ = __str__
+
 class Newton(object):
 
     """Build Newton interpolation polynomial and compute its value.

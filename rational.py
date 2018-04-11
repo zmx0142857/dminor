@@ -269,16 +269,21 @@ class Rat(object):
 
     # other methods--------------------------------------------
 
+    def copy(self):
+        return Rat(self._num, self._den)
+
     def _self_reduce(self):
         d = _gcd(self._num, self._den)
         if d == 0:
             raise ValueError('Bug: d == 0 whlie reducing.')
         self._num //= d
         self._den //= d
-        return self
+        return None
 
     def reduce(self):
-        return self._self_reduce()
+        r = self.copy()
+        r._self_reduce()
+        return r
 
     def str2d(self, pnt=True):
         """a delux view of the faction :)"""
@@ -389,11 +394,16 @@ def _do_operation(lhs, rhs, method):
             func = lambda x,y: x-y
         ret = Rat(func(rhs._den // d * lhs._num, lhs._den // d * rhs._num),\
                 lhs._den // d * rhs._den)
-        return ret._self_reduce()
+        ret._self_reduce()
+        return ret
     elif method == '*':
-        r1 = Rat(lhs._num, rhs._den)._self_reduce()
-        r2 = Rat(rhs._num, lhs._den)._self_reduce()
-        return Rat(r1._num * r2._num, r1._den * r2._den)._self_reduce()
+        r1 = Rat(lhs._num, rhs._den)
+        r1._self_reduce()
+        r2 = Rat(rhs._num, lhs._den)
+        r2._self_reduce()
+        ret = Rat(r1._num * r2._num, r1._den * r2._den)
+        ret._self_reduce()
+        return ret
     elif method == '/':
         if rhs._num < 0:
             return _do_operation(lhs, Rat(-rhs._den, -rhs._num), '*')
