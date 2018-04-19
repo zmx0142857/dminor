@@ -199,6 +199,48 @@ class Newton(object):
 
     __repr__ = __str__
 
+def cube_spline_1(x, y, p0, pn):
+    """
+    x, y are lists of points
+    p0 = f'(x0), pn = f'(xn)
+    >>> x0 = [0, 1, 2, 3]
+    >>> y0 = [0, 0, 0, 0]
+    >>> cube_spline_1(x0, y0, 1, 0)
+       2    1    0    0 -6.0
+     0.5    2  0.5    0  0.0
+       0  0.5    2  0.5  0.0
+       0    0    1    2  0.0
+    solution:
+        X0
+    -52/15
+     14/15
+     -4/15
+      2/15
+    """
+    import matrix, rational
+    def diff(x, y):
+        return ((y[2]-y[1])/(x[2]-x[1]) - (y[1]-y[0])/(x[1]-x[0]))\
+            /(x[2]-x[0])
+    n = len(x)-1
+    if n < 2:
+        raise ValueError('number of points must >= 3')
+    mat = matrix.diag(2, rows=n+1, field=rational.Rat)
+    d = []
+    mat[0][1] = 1
+    h = x[1]-x[0]
+    d.append(((y[1]-y[0])/h - p0)/h*6)
+    for i in range(1,n):
+        mat[i][i-1] = (x[i]-x[i-1])/(x[i+1]-x[i-1])
+        mat[i][i+1] = (x[i+1]-x[i])/(x[i+1]-x[i-1])
+        d.append(diff(x[i-1:i+2], y[i-1:i+2])*6)
+    mat[n][n-1] = 1
+    h = x[n]-x[n-1]
+    d.append((pn - (y[n]-y[n-1])/h)/h*6)
+    mat.insert(d, col=n+1)
+    print(mat)
+    print('solution:')
+    print(mat.solve())
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

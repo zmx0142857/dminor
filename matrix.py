@@ -5,7 +5,7 @@
 
 __author__ = 'Clarence Zhuo'
 
-from rational import Rat
+import rational
 
 class Mat(object):
     """
@@ -14,7 +14,7 @@ class Mat(object):
     >>> m = Mat('''
     ... 3.1 -0.4 1/3 0
     ... 3 5/2
-    ... 2 0.3 -1''')
+    ... 2 0.3 -1''', field=rational.Rat)
     >>> m
     31/10  -2/5   1/3     0
         3   5/2     0     0
@@ -23,7 +23,7 @@ class Mat(object):
     (3, 4)
     >>> m[0][1]
     -2/5
-    >>> m[0][1] += Rat('0.6')
+    >>> m[0][1] += 0.6
     >>> m(1, 2)
     1/5
     >>> -1 in m
@@ -44,8 +44,8 @@ class Mat(object):
     >>> m = E(2)
     >>> n = Mat('0.5\\n0.4', cols=2)
     >>> m + n
-    3/2   0
-    2/5   1
+    1.5   0
+    0.4   1
     >>> m
     1 0
     0 1
@@ -60,16 +60,16 @@ class Mat(object):
     2 4 6
     >>> n = diag(2, 0.5, rows=2)
     >>> m*n
-     2  1
-     6  2
-    10  3
+      2 1.0
+      6 2.0
+     10 3.0
     >>> m
     1 2
     3 4
     5 6
     >>> n
       2   0
-      0 1/2
+      0 0.5
 
     >>> m.resize(3,3)
     >>> m
@@ -90,23 +90,23 @@ class Mat(object):
     True
 
     >>> m.pr(row = 0, k = 0.5)
-    1/2   1
+    0.5 1.0
       3   4
     >>> m.pr(row = 0, row2 = 1)
       3   4
-    1/2   1
+    0.5 1.0
     >>> m.pr(row = 0, row2 = 1, k = -2)
-      2   2
-    1/2   1
+    2.0 2.0
+    0.5 1.0
     >>> m.pc(col = 1, k = 0.5)
-      2   1
-    1/2 1/2
+    2.0 1.0
+    0.5 0.5
     >>> m.pc(col = 1, col2 = 0)
-      1   2
-    1/2 1/2
+    1.0 2.0
+    0.5 0.5
     >>> m.pc(col = 1, col2 = 0, k = 1.5)
-      1 7/2
-    1/2 5/4
+     1.0  3.5
+     0.5 1.25
 
     >>> diag(1,2,3,rows=4,cols=5)
     1 0 0 0 0
@@ -120,18 +120,18 @@ class Mat(object):
     0 0 0 0 0
 
     >>> det(diag(3, rows=4, fill=1))
-    48
+    48.0
     >>> det(Mat('''
     ... 246 427 327
     ... 1014 543 443
     ... -342 721 621'''))
-    -29400000
+    -29400000.0
     >>> det(Mat('''
     ... 1 2 3 4
     ... 2 3 4 1
     ... 3 4 1 2
     ... 4 1 2 3'''))
-    160
+    160.0
 
     >>> Mat('''
     ... 4 -2 1
@@ -149,7 +149,7 @@ class Mat(object):
        0    1    0
        1    0    0
        1    0 -1/2
-    >>> Mat('''
+    >>> rMat('''
     ... 1 2 0 -3 2 1
     ... 1 -1 -3 1 -3 2
     ... 2 -3 4 -5 2 7
@@ -164,10 +164,12 @@ class Mat(object):
      -5  18  -7
       1  -3   1
     """
-    def __init__(self, init, rows=0, cols=0, title=()):
+    def __init__(self, init, rows=0, cols=0, field=None,\
+            title=()):
 
         self._data = []
         self._title = title
+        self._field = field
 
         if isinstance(init, Mat):
             for i in range(init.rows()):
@@ -186,9 +188,21 @@ class Mat(object):
 
         elif isinstance(init, str):
 
-            init = init.strip()
+            def field(x):
+                if self._field != None:
+                    return self._field(x)
+                try:
+                    return int(x)
+                except ValueError:
+                    try:
+                        return float(x)
+                    except ValueError:
+                        try:
+                            return rational.Rat(x)
+                        except ValueError:
+                            return complex(x)
 
-            # also: self._data = [ [Rat(elem) for elem in row.split()] for row in init.split('\n')]
+            init = init.strip()
             # >>> ''.split('\n')
             # ['']
             # >>> ''.split()
@@ -199,14 +213,14 @@ class Mat(object):
                 row = []
                 coef = row_str.rsplit(sep=';', maxsplit=1)
                 for elem_str in coef[0].split():
-                    row.append(Rat(elem_str))
+                    row.append(field(elem_str))
                 self._data.append(row)
                 cols = max(cols, len(row))
                 if len(coef) == 2:
                     append_b = True
-                    b.append(Rat(coef[1]))
+                    b.append(field(coef[1]))
                 else:
-                    b.append(Rat(0))
+                    b.append(field(0))
 
             self.resize(rows, cols)
             if append_b:
@@ -219,7 +233,7 @@ class Mat(object):
             for i in range(rows):
                 self._data.append([])
                 for j in range(cols):
-                    self._data[i].append(Rat(init(i, j)))
+                    self._data[i].append(self.field(init(i, j)))
 
         self.resize(rows, cols)
 
@@ -338,6 +352,9 @@ class Mat(object):
         return ret
 
 # Other Methods------------------------------------------------
+    
+    def field(self, x):
+        return self._field(x) if self._field != None else x
 
     def is_empty(self):
         """
@@ -386,7 +403,7 @@ class Mat(object):
         """
         return self.rows() == self.cols()
 
-    def resize(self, rows=None, cols=None, trunc=False, fill=Rat(0)):
+    def resize(self, rows=None, cols=None, trunc=False, fill=None):
         """
         -> None
 
@@ -396,6 +413,8 @@ class Mat(object):
             rows = self.rows()
         if cols == None:
             cols = self.cols()
+        if fill == None:
+            fill = self.field(0)
         while self.rows() < rows:
             self._data.append([])
 
@@ -428,7 +447,7 @@ class Mat(object):
 
     def trace(self):
         """
-        -> Rat
+        -> self._field
 
         Returns trace of self, self should be square.
         """
@@ -439,7 +458,7 @@ class Mat(object):
 
     def det(self):
         """
-        -> Rat
+        -> self._field
 
         Returns determinant of self, self should be square.
         """
@@ -447,7 +466,7 @@ class Mat(object):
             raise ValueError('Expecting a square matrix.')
 
         # det can be changed by _simplify
-        return Mat(self)._simplify( det = [Rat(1)] )
+        return Mat(self)._simplify( det = [self.field(1)] )
 
     def inv(self):
         """
@@ -647,7 +666,7 @@ class Mat(object):
 
             # so there are only 0 below target in this column!
             elif det != None:
-                return Rat(0)
+                return self.field(0)
             elif inv == True:
                 raise ValueError('This matrix is '
                                  'irreversible!')
@@ -811,7 +830,7 @@ class Mat(object):
 
 # class ends---------------------------------------------------
 
-def diag(*values, rows=None, cols=None, loop=True, fill=0):
+def diag(*values, rows=None, cols=None, loop=True, fill=0, field=None):
     """
     -> Mat
 
@@ -826,11 +845,13 @@ def diag(*values, rows=None, cols=None, loop=True, fill=0):
         cols = rows
 
     if loop:
-        return Mat(lambda i,j: values[i % sz] if i == j else fill, rows, cols)
+        return Mat(lambda i,j: values[i % sz] if i == j else fill, rows,\
+                cols, field=field)
     else:
-        return Mat(lambda i,j: values[i] if i == j and i<sz else fill, rows, cols)
+        return Mat(lambda i,j: values[i] if i == j and i<sz else fill,\
+                rows, cols, field=field)
 
-def O(rows, cols = None, fill = 0):
+def O(rows, cols=None, fill=0, field=None):
     """
     -> Mat
 
@@ -838,32 +859,34 @@ def O(rows, cols = None, fill = 0):
     """
     if cols == None:
         cols = rows
-    return Mat(lambda i,j: 0, rows, cols)
+    return Mat(lambda i,j: 0, rows, cols, field=field)
 
-def E(size):
+def E(size, field=None):
     """
     -> Mat
 
     Returns a unit matrix.
     """
-    return diag(1, rows = size)
+    return diag(1, rows=size, field=field)
 
-def Kronecker(i, j):
+def Kronecker(i, j, field=None):
     """
-    -> Rat
+    -> int
 
     Kronecker delta = 1, if i == j
                       0, if i != j
     """
-    return Rat(1) if i == j else Rat(0)
+    if field == None:
+        return 1 if i == j else 0
+    return field(1) if i == j else field(0)
 
-def e(size, i):
+def e(size, i, field=None):
     """
-    -> list of Rat
+    -> list of self._field
 
     Returns a list, which is the ith column of E.
     """
-    return [Kronecker(i, j) for j in range(size)]
+    return [Kronecker(i, j, field=field) for j in range(size)]
 
 def trans(mat):
     """
@@ -875,7 +898,7 @@ def trans(mat):
 
 def trace(mat):
     """
-    -> Rat
+    -> self._field
 
     Returns trace of mat, mat should be square.
     """
@@ -883,7 +906,7 @@ def trace(mat):
 
 def det(mat):
     """
-    -> Rat
+    -> self._field
 
     Returns determinant of mat, mat should be square.
     """
@@ -897,7 +920,7 @@ def inv(mat):
     """
     return mat.inv()
 
-def resize(L, size, fill=Rat(0)):
+def resize(L, size, fill=0):
     """
     -> None
 
@@ -907,6 +930,9 @@ def resize(L, size, fill=Rat(0)):
     L.extend(fill for i in range(length))
     while len(L) > size:
         L.pop()
+
+def rMat(*args, **kw):
+    return Mat(*args, **kw, field=rational.Rat)
 
 if __name__ == '__main__':
     import doctest
