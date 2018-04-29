@@ -5,7 +5,7 @@
 
 __author__ = 'Clarence Zhuo'
 
-import matrix
+import matrix, rational
 
 le = -1
 eq = 0
@@ -64,6 +64,15 @@ class LP(object):
     >>> lp = LP(mat, chk, base)
     >>> lp.solve()
     ('best solution', [3/4, 0, 0, 1, 0, 1, 0], 5/4)
+    
+    >>> mat = matrix.Mat('''
+    ... 1 4 2 8
+    ... 3 2 0 6''')
+    >>> chk = [2, 3, 1]
+    >>> rel = [ge, ge]
+    >>> lp = LP(mat, chk, maximum=False, relation=rel)
+    >>> lp.solve()
+    ('best solution', [4/5, 9/5, 0, 0, 0], 7)
     """
     def __init__(self, mat, chk_list, base=None, maximum=True,\
             relation=None):
@@ -71,8 +80,9 @@ class LP(object):
         LP(Mat, check_list, base_index) -> LP object
 
         mat := [A, b] is the argumented matrix for a standardized LP problem
-        chk_list is a list of checking numbers for each variable x_i
         base is indeces of base vectors
+        artificial is the column number of the first artificial variable
+        chk_list is a list of checking numbers for each variable x_i
         build a matrix like:
             A | b
           chk | -z
@@ -85,51 +95,70 @@ class LP(object):
         self.base = base if base != None else []
         self.artificial = self.mat.cols()-1
         self.maximum = maximum
-        self.chk_list = list(chk_list) if maximum else [-c for c in chk_list]
+        self.chk_list = list(chk_list)
+        # make chk_list has same columns as mat by appending zeros
         matrix.resize(self.chk_list, self.mat.cols())
         self.relation = relation if relation != None\
                 else [eq for col in self.mat]
+        matrix.resize(self.relation, self.mat.rows(), fill=eq)
 
     # adding artificial variables
-    def art(self, relation):
-        if self.base == []:
-            if relation == None:
-                raise ValueError('relation must not be None when base is not '
-                                 'given')
-            rows = self.mat.rows()
-            matrix.resize(relation, rows, fill=0)
-            for i, rel in enumerate(relation):
-                if rel == le:
-                    self.mat.insert(matrix.e(rows, i), col=self.artificial)
-                    self.chk_list.append(0)
-                    self.base.append(self.artificial)
-                    self.artificial += 1
-                elif rel == eq:
-                    # insert before last column
-                    self.mat.insert(matrix.e(rows, i), col=-1)
-                    self.base.append(self.mat.cols()-2)
-                elif rel == ge:
-                    self.mat.insert(((matrix.Rat(-1) if i == j else\
-                        matrix.Rat(0)) for j in range(rows)),\
-                        col=self.artificial)
-                    self.artificial += 1
-                    self.mat.insert(matrix.e(rows, i), col=-1)
-                    self.chk_list.append(0)
-                    self.base.append(self.mat.cols()-2)
+    def art(self):
+        rows = self.mat.rows()
+        for i, rel in enumerate(self.relation):
+            if rel == le:
+                # add loose variable
+                # matrix.e is unit vector with ith element == 1
+                self.mat.insert(matrix.e(rows, i), col=self.artificial)
+                self.chk_list.append(0)
+                self.base.append(self.artificial)
+                self.artificial += 1
+            elif rel == eq:
+                # add artificial variable
+                # insert before last column
+                self.mat.insert(matrix.e(rows, i), col=-1)
+            elif rel == ge:
+                # subtract remaining variable,
+                # add artificial variable
+                self.mat.insert(((rational.Rat(-1) if i == j else\
+                    rational.Rat(0)) for j in range(rows)),\
+                    col=self.artificial)
+                self.chk_list.append(0)
+                self.artificial += 1
+                self.mat.insert(matrix.e(rows, i), col=-1)
+        self.base.extend(range(self.artificial, self.mat.cols()-1))
 
     def compute_theta(self, col):
-        rows = self.mat.rows()-1
-        theta = [0 for i in range(rows)]
         min_theta = 0
         ret = None
-        for row in range(rows):
+        # after appending chk_list to mat, rows has increased by 1
+        for row in range(self.mat.rows()-1):
             if self.mat[row][col] == 0:
                 continue
-            theta[row] = self.mat[row][-1] / self.mat[row][col]
-            if theta[row] > 0 and (min_theta == 0 or theta[row] < min_theta):
-                min_theta = theta[row]
+            theta = self.mat[row][-1] / self.mat[row][col]
+            if theta > 0 and (min_theta == 0 or theta < min_theta):
+                min_theta = theta
                 ret = row
         return ret
+
+    def two_step(self, verbose=False):
+        chk_list = [(0 if i < self.artificial else 1)\
+                for i in range(self.mat.cols()-1)]
+        lp = LP(self.mat, chk_list, self.base, maximum=False) 
+        result = lp.solve(verbose)
+
+        if verbose:
+            print('after first step:\n%s' % self.mat)
+            print('base: %s' % self.base)
+
+        # no solution
+        if not isinstance(result, tuple) or result[2] != 0:
+            return False
+
+        while self.artificial < self.mat.cols() - 1:
+            self.mat.pop(col=-2)
+
+        return True
 
     def solve(self, verbose=False):
 
@@ -137,44 +166,45 @@ class LP(object):
                 'unbounded solution']
         status = 0
 
-        self.art(self.relation)
-        # exist artificial variable, use two-step method
-        if self.artificial < self.mat.cols() - 1:
-            chk_list = [(0 if i < self.artificial else -1)\
-                    for i in range(self.mat.cols()-1)]
-            lp = LP(self.mat, chk_list, self.base) 
-            result = lp.solve(verbose)
-            if verbose:
-                print('after first step:\n%s' % self.mat)
-                print('base: %s' % self.base)
-            if not isinstance(result, tuple) or result[2] != 0:
-                return status_str[1]
-            while self.artificial < self.mat.cols() - 1:
-                self.mat.pop(col=-2)
-            self.mat[-1] = self.chk_list
-            if verbose:
-                print('chk-appended:\n%s' % self.mat)
-        else:
-            self.mat._data.append(self.chk_list)
-
-        # use primary transform on check numbers
-        row = 0
-        for col in self.base:
-            chk = self.mat[-1][col]
-            if chk != 0:
-                self.mat.pr(row = -1, row2 = row, k = -chk)
-            row += 1
         if verbose:
-            print('chk-processed:\n%s' % self.mat)
+            print('solving lp:\n%s' % self)
+        if self.base == []:
+            self.art()
+        if verbose:
             print('base: %s' % self.base)
 
+        # append check list
+        # use two-step method if artificial variable exists
+        if self.artificial < self.mat.cols() - 1:
+            if not self.two_step(verbose):
+                return status_str[1]
+            # replace last line with self.chk_list
+            self.mat[-1] = self.chk_list
+        else:
+            self.mat._data.append(self.chk_list)
+        if verbose:
+            print('check list appended:\n%s' % self.mat)
+
+        # use primary transform on check numbers
+        for r, col in enumerate(self.base):
+            chk = self.mat[-1][col]
+            if chk != 0:
+                self.mat.pr(row = -1, row2 = r, k = -chk)
+        if verbose:
+            print('check list processed:\n%s' % self.mat)
+
+        # main loop
         while status == 0:
             status = 2
+            if self.maximum:
+                cond = lambda x: x <= 0
+            else:
+                cond = lambda x: x >= 0
             for col in range(self.mat.cols()-1):
-                if col in self.base or self.mat[-1][col] <= 0:
+                if col in self.base or cond(self.mat[-1][col]):
                     continue
 
-                # positie chk_number for non-base variable found
+                # positive check number for non-base variable found
                 swap_in = col
                 swap_out = self.compute_theta(col)
 
@@ -187,18 +217,15 @@ class LP(object):
                     status = 0
                     break
 
-            # no positive chk_number means best solution obtained
+            # no positive check number means best solution obtained
             if status == 2:
                 x = [0 for i in range(self.mat.cols()-1)]
                 for i, b in enumerate(self.base):
                     # non-zero artificial variable exist in base
-                    #if b >= self.artificial and self.mat[i][-1] != 0:
-                    #    return status_str[1]
+                    if b >= self.artificial and self.mat[i][-1] != 0:
+                        return status_str[1]
                     x[b] = self.mat[i][-1]
-                z = self.mat[-1][-1]
-                if self.maximum:
-                    z = -z
-                return status_str[status], x, z
+                return status_str[2], x, -self.mat[-1][-1]
 
             # swap_out == None for each col with chk_number > 0
             elif status == 3:
@@ -215,7 +242,7 @@ class LP(object):
             self.base[swap_out] = swap_in
 
             if verbose:
-                print("after transformation:\n%s" % self.mat)
+                print("after iteration:\n%s" % self.mat)
                 print("base: %s" % self.base)
 
         return status_str[status]
@@ -259,11 +286,9 @@ class LP(object):
         def target():
             if self.maximum:
                 m = 'max'
-                chk_list = self.chk_list
             else:
                 m = 'min'
-                chk_list = [-c for c in self.chk_list]
-            return m + ' z = ' + line(chk_list) + '\ns.t.\n'
+            return m + ' z = ' + line(self.chk_list) + '\ns.t.\n'
 
         return target() + '\n'.join(expr(r) for r in\
                 range(self.mat.rows())) + '\n    all xi >= 0'
