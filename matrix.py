@@ -934,6 +934,12 @@ def resize(L, size, fill=0):
 def rMat(*args, **kw):
     return Mat(*args, **kw, field=rational.Rat)
 
+def inner_product(a, b):
+    """
+    Inner product of two vectors
+    """
+    return sum(x[0] * x[1] for x in zip(a, b))
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
