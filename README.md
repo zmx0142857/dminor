@@ -11,3 +11,18 @@ getting better little by little. This project is still under developing
 and (I hope) a lot of new features will be added to it in the future.
 
 Mar 31 2018
+
+# Known bugs & things to improve
+
+polynomial.py:
+	problem with polynomial sym (symbol)
+
+lp.py:
+	an index out of range error
+	an intro-to-algo-style algorithm is needed
+	a more natural input processing is needed
+
+matrix.py:
+	the solve() algorithm needs to improve
+
+Jul 6 2018

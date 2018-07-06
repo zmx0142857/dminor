@@ -44,11 +44,11 @@ class LP(object):
     >>> rel = [le, ge, eq]
     >>> lp = LP(mat, chk, maximum=False, relation=rel)
     >>> lp
-    min -3x0 + x1 + x2
+    min -3x1 + x2 + x3
     s.t.
-        x0 - 2x1 + x2 <= 11
-        -4x0 + x1 + 2x2 >= 3
-        -2x0 + x2 = 1
+        x1 - 2x2 + x3 <= 11
+        -4x1 + x2 + 2x3 >= 3
+        -2x1 + x3 = 1
         all xi >= 0
     >>> lp.solve()
     ('optimal solution', [4, 1, 9, 0, 0], -2)
@@ -72,6 +72,15 @@ class LP(object):
     >>> lp = LP(mat, chk, base)
     >>> lp.solve()
     ('optimal solution', [3/4, 0, 0, 1, 0, 1, 0], 5/4)
+
+    >>> # index out of range?
+    >>> mat = matrix.rMat('''
+    ... 3 6 3 -4 12
+    ... 2 0 1 0 4
+    ... 3 -6 0 4 0''')
+    >>> chk = [4, 0, 3]
+    >>> lp = LP(mat, chk, maximum=False)
+    >>> lp.solve()
     """
     def __init__(self, mat, chk_list, base=None, maximum=True,\
             relation=None):
@@ -282,7 +291,7 @@ class LP(object):
                 if abs_coef != 1:
                     ret.append(str(abs_coef))
                 # symbol
-                ret.append('x' + str(i))
+                ret.append('x' + str(i+1))
             return ''.join(ret)
 
         return ('max ' if self.maximum else 'min ')\
