@@ -160,33 +160,23 @@ class Mat(object):
     ... 3 -4 5
     ... 2 -3 1
     ... 3 -5 -1'''))
-     -8  29 -11
-     -5  18  -7
-      1  -3   1
+     -8.0  29.0 -11.0
+     -5.0  18.0  -7.0
+      1.0  -3.0   1.0
     """
-    def __init__(self, init, rows=0, cols=0, field=None,\
-            title=()):
+    def __init__(self, arg, rows=0, cols=0, field=None, title=()):
 
         self._data = []
         self._title = title
         self._field = field
 
-        if isinstance(init, Mat):
-            for i in range(init.rows()):
-                self._data.append([])
-                for j in range(init.cols()):
-                    self._data[i].append(init[i][j])
+        from collections import Iterable
+        if isinstance(arg, Mat):
+            self._title = arg._title
+            self._field = arg._field
+            self._data = [r.copy() for r in arg]
 
-        elif isinstance(init, list):
-            if init == []:
-                self._data = [[]]
-            elif isinstance(init[0], list):
-                self._data = init
-            else:
-                raise TypeError('If init is a list, it has to '
-                                'be a list of list.')
-
-        elif isinstance(init, str):
+        elif isinstance(arg, str):
 
             def field(x):
                 if self._field != None:
@@ -198,18 +188,19 @@ class Mat(object):
                         return float(x)
                     except ValueError:
                         try:
+                            self._field = rational.Rat
                             return rational.Rat(x)
                         except ValueError:
                             return complex(x)
 
-            init = init.strip()
+            arg = arg.strip()
             # >>> ''.split('\n')
             # ['']
             # >>> ''.split()
             # []
             b = []
             append_b = False
-            for row_str in init.split('\n'):
+            for row_str in arg.split('\n'):
                 row = []
                 coef = row_str.rsplit(sep=';', maxsplit=1)
                 for elem_str in coef[0].split():
@@ -228,12 +219,16 @@ class Mat(object):
                     self._data[r].append(b[r])
                 cols += 1
 
-        elif callable(init):
+        elif isinstance(arg, Iterable):
+            if len(arg) > 0 and isinstance(arg[0], Iterable):
+                self._data = arg
+            else:
+                raise TypeError("If arg is an Iterable and is not a Mat or str, "
+                                "it has to be an Iterable of Iterable.")
 
-            for i in range(rows):
-                self._data.append([])
-                for j in range(cols):
-                    self._data[i].append(self.field(init(i, j)))
+        elif callable(arg):
+            self._data = [[self.field(arg(i, j)) for j in range(cols)]\
+                    for i in range(rows)]
 
         self.resize(rows, cols)
 
@@ -243,13 +238,15 @@ class Mat(object):
         if self.is_empty():
             return '<empty matrix>'
 
-        width = max( max((len(str(elem)) for elem in row))  for row in self._data)
-        content = '\n'.join((' '.join(( str(elem).rjust(width) for elem in row)) for row in self._data))
-        if self._title == ():
-            return content
-        else:
-            title = ' '.join((t.rjust(width) for t in self._title)) + '\n'
-            return title + content
+        width = max(\
+                    max((len(str(elem)) for elem in row))\
+                for row in self._data)
+        content = '\n'.join(\
+                    (' '.join((str(elem).rjust(width) for elem in row))\
+                for row in self._data))
+        title = '' if self._title == ()\
+                else ' '.join((t.rjust(width) for t in self._title)) + '\n'
+        return title + content
 
     __repr__ = __str__
 
@@ -498,11 +495,10 @@ class Mat(object):
         -> self
 
         Primary row transform on self. The form of transform
-        depends on the arguments given. row and row2 start from 0.
+        depends on the arguments given. Indices are 0-based.
         """
         if row2 == None and k == None:
-            raise ValueError("At least one of 'row2' and 'k' "
-                             "is required.")
+            raise ValueError("At least one of 'row2' and 'k' is required.")
 
         # pr1: row *= k
         elif row2 == None: # k != None
@@ -510,11 +506,8 @@ class Mat(object):
 
         # pr3: swap row, row2
         elif k == None: # row2 != None
-            if row == row2:
-                return self
-            tmp = self[row]
-            self[row] = self[row2]
-            self[row2] = tmp
+            if row != row2:
+                self[row], self[row2] = self[row2], self[row]
 
         # pr2: row += row2 * k
         else: # row2, k != None
@@ -542,12 +535,10 @@ class Mat(object):
 
         # pc3: swap col, col2
         elif k == None: # col2 != None
-            if col == col2:
-                return self
-            for row in range(self.rows()):
-                tmp = self[row][col]
-                self[row][col] = self[row][col2]
-                self[row][col2] = tmp
+            if col != col2:
+                for row in range(self.rows()):
+                    self[row][col], self[row][col2]\
+                            = self[row][col2], self[row][col]
 
         # pc2: col += col2 * k
         else: # col2, k != None
@@ -567,6 +558,40 @@ class Mat(object):
             return self.pr(row=ix, row2=ix2, k=k)
         else:
             return self.pc(col=ix, col2=ix2, k=k)
+
+    def eliminate(self, row, col, _range=None):
+        """
+        -> None
+
+        Use self[row][col] as pivot to do Gauss Elimination.
+        The pivot is changed to 1, the other elements on col is changed to
+        0. Raise ValueError if pivot == 0.
+        """
+        if self[row][col] == 0:
+            raise ValueError("The pivot of eliminate() cannot be zero.")
+        elif _range == None:
+            _range = range(row+1, self.rows())
+        elif row in _range:
+            raise ValueError("The _range of eliminate() cannot contain row.")
+
+        # rewrite this row
+        if self[row][col] != 1:
+            rate = -1 if self[row][col] == -1 else self.field(1) / self[row][col]
+            self[row][col] = self.field(1)
+            for c in range(col):
+                self[row][c] *= rate
+            for c in range(col+1, self.cols()):
+                self[row][c] *= rate
+
+        # process others
+        for r in _range:
+            if self[r][col] != 0:
+                for c in range(col):
+                    self[r][c] -= self[r][col] * self[row][c]
+                for c in range(col+1, self.cols()):
+                    self[r][c] -= self[r][col] * self[row][c]
+                self[r][col] = self.field(0)
+
 
     def _target(self, col):
         """
@@ -654,7 +679,7 @@ class Mat(object):
         Help to simplify the matrix (what great help!).
         """
         col = 0
-        while col != min(self.rows(), self.cols()):
+        while col != self.rows() and col != self.cols():
             target = self._target(col)
 
             if self._p3(col, det, target):
@@ -668,27 +693,20 @@ class Mat(object):
             elif det != None:
                 return self.field(0)
             elif inv == True:
-                raise ValueError('This matrix is '
-                                 'irreversible!')
+                raise ValueError("This matrix is irreversible!")
             elif self.cols() >= 2:
                 if not self._swap_col(col, target, vars):
                     col += 1
                 continue
 
-            # for all rows below: goto 0!
-            for row in range(target+1, self.rows()):
-                self.pr(row = row, row2 = target, k = -self[row][col])
-
+            self.eliminate(target, col, range(target+1, self.rows()))
             col += 1
 
-        if rowsimp == True:
+        if rowsimp:
             # reverse iter:
             for col in range(min(self.cols(), self.rows())-1, -1, -1):
-                if self[col][col] == 0:
-                    continue
-                # for all rows above: goto 0!
-                for row in range(0, col):
-                    self.pr(row = row, row2 = col, k = -self[row][col])
+                if self[col][col] != 0:
+                    self.eliminate(col, col, range(col))
 
         if det != None:
             return det[0]
