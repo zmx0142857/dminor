@@ -81,9 +81,10 @@ class LP(object):
     >>> chk = [4, 0, 3]
     >>> lp = LP(mat, chk, maximum=False)
     >>> lp.solve()
+    ('optimal solution', [2, 1, 0, 0], 8)
     """
     def __init__(self, mat, chk_list, base=None, maximum=True,\
-            relation=None):
+            relation=None, artificial=None):
         """
         LP(Mat, check_list, base_index) -> LP object
 
@@ -101,7 +102,9 @@ class LP(object):
         """
         self.mat = mat
         self.base = base
-        self.artificial = self.mat.cols()-1
+        self.artificial = artificial if artificial != None\
+                else self.mat.cols()-1
+        self.exist_art = False
         self.maximum = maximum
         self.chk_list = list(chk_list)
         # make chk_list has same columns as mat by appending zeros
@@ -109,6 +112,7 @@ class LP(object):
         self.relation = list(relation) if relation != None\
                 else [eq for row in self.mat]
         matrix.resize(self.relation, self.mat.rows(), fill=eq)
+        self.verbose = False
 
     # adding artificial variables
     def art(self):
@@ -136,9 +140,7 @@ class LP(object):
                 self.artificial += 1
                 self.mat.insert(matrix.e(rows, i), col=-1)
         self.base.extend(range(self.artificial, self.mat.cols()-1))
-
-    def exist_art(self):
-        return self.artificial < self.mat.cols() - 1
+        self.exist_art = True
 
     def compute_theta(self, col):
         min_theta = None
@@ -154,23 +156,28 @@ class LP(object):
                 ret = row
         return ret
 
-    def two_step(self, verbose=False):
+    def two_step(self):
         chk_list = [0 for i in range(self.artificial)]\
                 + [1 for i in range(self.artificial, self.mat.cols()-1)]
-        lp = LP(self.mat, chk_list, self.base, maximum=False) 
+        lp = LP(self.mat, chk_list, self.base, maximum=False,\
+                artificial=self.artificial)
 
-        if verbose:
-            print('step 1:')
-        result = lp.solve(verbose)
+        self.msg('step 1:')
+        result = lp.solve(self.verbose)
+        self.msg(result)
 
         # no solution
         if not isinstance(result, tuple) or result[2] != 0:
             return False
 
-        while self.exist_art():
+        while self.artificial < self.mat.cols() - 1:
             self.mat.pop(col=-2)
 
         return True
+
+    def msg(self, *message):
+        if (self.verbose):
+            print(*message)
 
     def solve(self, verbose=False):
 
@@ -179,67 +186,77 @@ class LP(object):
         no_solution = 1
         optimal_solution = 2
         unbounded_solution = 3
+        self.verbose = verbose
 
+        self.msg('solve lp:\n%s' % self)
         if self.base == None:
             self.art()
-        if verbose:
-            print('solving lp:\n%s' % self)
-            print('base: %s' % self.base)
+            self.msg('add slack or artificial variable:\n%s' % self)
+        self.msg('base:', [b+1 for b in self.base])
 
         # append check list
         # use two-step method if artificial variable exists
-        if self.exist_art():
-            if not self.two_step(verbose):
+        if self.exist_art:
+            if not self.two_step():
                 return 'no solution'
-            if verbose:
-                print('step 2:')
+            self.msg('step 2:')
             # replace last line with self.chk_list
             self.mat[-1] = self.chk_list
         else:
             self.mat._data.append(self.chk_list)
-        if verbose:
-            print('check list appended:\n%s' % self.mat)
+
+        self.msg('simplex table:\n%s' % self.mat)
 
         # use primary transform on check numbers
         for r, col in enumerate(self.base):
             if self.mat[-1][col] != 0:
                 self.mat.eliminate(r, col, range(-1, 0))
-        if verbose:
-            print('check list processed:\n%s' % self.mat)
+        self.msg('eliminate check numbers for base:\n%s' % self.mat)
 
         # main loop
         cnt = 0
         max_iter = choose(self.mat.cols()-1, self.mat.rows()-1)
-        cond = (lambda x: x <= 0) if self.maximum else (lambda x: x >= 0)
+        cond = (lambda x: x > 0) if self.maximum else (lambda x: x < 0)
         status = processing
         
         while status == processing:
             status = optimal_solution
             for col in range(self.mat.cols()-1):
-                if col in self.base or cond(self.mat[-1][col]):
-                    continue
 
                 # positive check number for non-base variable found
-                swap_in = col
-                swap_out = self.compute_theta(col)
+                if col not in self.base and cond(self.mat[-1][col]):
+                    swap_in = col
+                    swap_out = self.compute_theta(col)
 
-                # this happens when there's no non-negative theta, or the
-                # denominator == 0 when computing theta
-                if swap_out == None:
-                    status = unbounded_solution
-                    continue
-                else:
-                    status = processing
-                    break
+                    # this happens when there's no non-negative theta,
+                    # or the denominator == 0 when computing theta
+                    if swap_out == None:
+                        status = unbounded_solution
+                    else:
+                        status = processing
+                        break
 
-            # no positive check number means optimal solution obtained
+            # no positive check number and no artificial variable(s) exist
+            # means optimal solution obtained
             if status == optimal_solution:
                 x = [0 for i in range(self.mat.cols()-1)]
+                to_pop = []
                 for i, b in enumerate(self.base):
-                    # non-zero artificial variable exist in base
-                    if b >= self.artificial and self.mat[i][-1] != 0:
-                        return 'no solution'
-                    x[b] = self.mat[i][-1]
+                    # see if artificial variable(s) exist in base
+                    if b >= self.artificial:
+                        if self.mat[i][-1] != 0:
+                            return 'no solution'
+                        else:
+                            # note that x[b] is already 0
+                            # so no need to write:
+                            # x[b] = self.mat[i][-1]
+                            to_pop.append(i)
+                    else:
+                        x[b] = self.mat[i][-1]
+                # remove the zero line and the base
+                for i in to_pop:
+                    self.mat.pop(row=i)
+                    self.base.pop(i)
                 return 'optimal solution', x, -self.mat[-1][-1]
 
             # swap_out == None for each col with chk_number > 0
@@ -257,9 +274,8 @@ class LP(object):
             if cnt > max_iter:
                 return 'stopped on reaching max_iter'
 
-            if verbose:
-                print('iteration #%d:\n%s' % (cnt, self.mat))
-                print('base: %s' % self.base)
+            self.msg('iteration #%d:\n%s' % (cnt, self.mat))
+            self.msg('base:', [b+1 for b in self.base])
 
     def __str__(self):
 

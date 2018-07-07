@@ -18,7 +18,6 @@ polynomial.py:
 	problem with polynomial sym (symbol)
 
 lp.py:
-	an index out of range error
 	an intro-to-algo-style algorithm is needed
 	a more natural input processing is needed
 
