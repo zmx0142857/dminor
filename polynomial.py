@@ -64,7 +64,8 @@ class Poly(object):
     x^2 - 2x + 1
     >>> #Poly(1, -1)(Poly(1, 0, 0, sym='t')) # got t^2 - 1
     """
-    def __init__(self, *args, sym='x', reverse=True):
+    symbol = 'x'
+    def __init__(self, *args, sym=None, reverse=True):
         """
         Poly() -> polynomial x
         Poly(Poly p) -> a copy of p
@@ -73,27 +74,27 @@ class Poly(object):
         Poly(an, ..., a1, a0) -> an x^n + ... + a1 x + a0
         """
         from collections import Iterable
-        self._sym = sym
+        self.sym = sym if sym != None else self.symbol
 
         argc = len(args)
         if argc == 0:
-            self._coef = [0, 1] # polynomial x
+            self.coef = [0, 1] # polynomial x
         elif argc == 1 and isinstance(args[0], Poly):
-            self._coef = list(args[0]._coef)
+            self.coef = list(args[0].coef)
         elif argc == 1 and isinstance(args[0], Iterable):
-            self._coef = list(args[0])
+            self.coef = list(args[0])
         elif argc == 2 and callable(args[0]):
             if not isinstance(args[1], int) or args[1] < 0:
                 raise TypeError('The 2nd argument (degree) '
                                 'must be a non-negative int.')
-            self._coef = [args[0](i) for i in range(args[1]+1)]
+            self.coef = [args[0](i) for i in range(args[1]+1)]
         else:
             if reverse:
-                self._coef = list(reversed(args))
+                self.coef = list(reversed(args))
             else:
-                self._coef = list(args)
+                self.coef = list(args)
     
-        # invariant: len(self._coef) >= 1
+        # invariant: len(self.coef) >= 1
 
         self.rmzero()
     
@@ -105,26 +106,26 @@ class Poly(object):
         """
         if not isinstance(key, int):
             raise TypeError('Key must be an int.')
-        elif key < -len(self._coef):
+        elif key < -len(self.coef):
             raise IndexError('Index out of range.')
-        elif key > len(self._coef)-1:
+        elif key > len(self.coef)-1:
             return 0 # higher degree coefficient == 0
         else:
-            return self._coef[key]
+            return self.coef[key]
     
     def __setitem__(self, key, value):
         if not isinstance(key, int):
             raise TypeError('Key must be an int.')
-        elif key < -len(self._coef):
+        elif key < -len(self.coef):
             raise IndexError('Index out of range.')
     
         while key > self.deg():
-            self._coef.append(0)
-        self._coef[key] = value
+            self.coef.append(0)
+        self.coef[key] = value
     
     def __str__(self):
     
-        n = len(self._coef)-1
+        n = len(self.coef)-1
         ret = ''
 
         # reversed iteration
@@ -144,19 +145,19 @@ class Poly(object):
                 sign = ' - ' if self[k] < 0 else ' + '
 
             # 'coefficient'
-            abs_coef = abs(self[k])
-            if abs_coef == 1 and k != 0:
+            abscoef = abs(self[k])
+            if abscoef == 1 and k != 0:
                 coef = ''
             else:
-                coef = str(abs_coef)
+                coef = str(abscoef)
 
             # 'symbol and its exponent'
             if k == 0:
                 expo = ''
             elif k == 1:
-                expo = self._sym
+                expo = self.sym
             else:
-                expo = self._sym + '^' + str(k)
+                expo = self.sym + '^' + str(k)
 
             ret += sign + coef + expo
 
@@ -171,7 +172,7 @@ class Poly(object):
         Assign a value to polynomial, using Horner's rule.
         """
         ret = self[-1]
-        for c in self._coef[-2::-1]:
+        for c in self.coef[-2::-1]:
             ret = ret * v + c
         return ret
     
@@ -181,7 +182,7 @@ class Poly(object):
         except Exception:
             return False
         # list will compare lexicographically
-        return self._coef == other._coef
+        return self.coef == other.coef
     
     def __ne__(self, other):
         return not self == other
@@ -190,7 +191,7 @@ class Poly(object):
         return self
     
     def __neg__(self):
-        return Poly((-c for c in self._coef), sym=self._sym)
+        return Poly((-c for c in self.coef), sym=self.sym)
     
     def __add__(self, other):
         return _do_operation(self, other, '+')
@@ -225,7 +226,7 @@ class Poly(object):
         if not isinstance(other, int) or other < 0:
             raise TypeError('arg2 for __pow__() must be '
                             'non-negative integer!')
-        ret = Poly(1, sym=self._sym)
+        ret = Poly(1, sym=self.sym)
         for i in range(other):
             ret *= self
         return ret
@@ -241,7 +242,7 @@ class Poly(object):
         if self.iszero():
             return -1
         else:
-            return len(self._coef)-1
+            return len(self.coef)-1
     
     def sym(self, c=None):
         """
@@ -251,28 +252,28 @@ class Poly(object):
         Reset the variable name for self.
         """
         if c == None:
-            return self._sym
-        self._sym = c
+            return self.sym
+        self.sym = c
 
     def iszero(self):
         """Returns True iff self == zero polynomial."""
-        return len(self._coef) == 1 and self[0] == 0
+        return len(self.coef) == 1 and self[0] == 0
 
     def rmzero(self):
         """Remove extra zeros."""
-        while len(self._coef) > 1 and self._coef[-1] == 0:
-            self._coef.pop()
+        while len(self.coef) > 1 and self.coef[-1] == 0:
+            self.coef.pop()
 
     def diff(self):
         """Derivate of polynomial."""
-        if len(self._coef) == 1:
-            return Poly(0, sym=self._sym)
-        return Poly((self[i] * i for i in range(1, len(self._coef))),\
-                sym=self._sym)
+        if len(self.coef) == 1:
+            return Poly(0, sym=self.sym)
+        return Poly((self[i] * i for i in range(1, len(self.coef))),\
+                sym=self.sym)
 
     def precedence(self):
         cnt = 0
-        for c in self._coef:
+        for c in self.coef:
             if c != 0:
                 if cnt == 0:
                     cnt = 1
@@ -297,27 +298,27 @@ def _do_operation(lhs, rhs, method):
             func = lambda x,y: x+y
         else:
             func = lambda x,y: x-y
-        length = max(len(lhs._coef), len(rhs._coef))
+        length = max(len(lhs.coef), len(rhs.coef))
         return Poly((func(lhs[i], rhs[i]) for i in range(length)),\
-                sym=lhs._sym)
+                sym=lhs.sym)
 
     elif method == '*':
         if lhs.iszero() or rhs.iszero():
-            return Poly(0, sym=lhs._sym)
+            return Poly(0, sym=lhs.sym)
         """
-        0 <= i < len(lhs._coef)
-        0 <= j-i < len(rhs._coef) <---> j-len(rhs._coef) < i <= j
-        hence max(0, j-len(rhs)+1) <= i < min(j+1, len(lhs._coef))
+        0 <= i < len(lhs.coef)
+        0 <= j-i < len(rhs.coef) <---> j-len(rhs.coef) < i <= j
+        hence max(0, j-len(rhs)+1) <= i < min(j+1, len(lhs.coef))
         """
-        lenl, lenr = len(lhs._coef), len(rhs._coef)
+        lenl, lenr = len(lhs.coef), len(rhs.coef)
         return Poly((sum(lhs[i] * rhs[j-i] for i in range(max(0, j-lenr+1),\
-                min(j+1, lenl))) for j in range(lenl+lenr)), sym=lhs._sym )
+                min(j+1, lenl))) for j in range(lenl+lenr)), sym=lhs.sym )
 
     elif method == '/%':
         if rhs.iszero():
             raise ZeroDivisionError
         elif lhs.deg() < rhs.deg():
-            return Poly(0, sym=lhs._sym), lhs
+            return Poly(0, sym=lhs.sym), lhs
         elif rhs.deg() == 0:
             return 1 / rhs[0] * lhs, 0
         """ considering M / N: first have their coef reversed, so N0 is
@@ -335,7 +336,7 @@ def _do_operation(lhs, rhs, method):
             q[i] /= rhs[n]
         r = (lhs[i] - sum(q[m-n-i+j] * rhs[j] for j in range(max(0, n+i-m),\
                 i+1)) for i in range(n))
-        return Poly(reversed(q), sym=lhs._sym), Poly(r, sym=lhs._sym)
+        return Poly(reversed(q), sym=lhs.sym), Poly(r, sym=lhs.sym)
 
     elif method == '//':
         return _do_operation(lhs, rhs, '/%')[0]

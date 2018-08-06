@@ -5,6 +5,8 @@
 
 __author__ = 'Clarence Zhuo'
 
+from dminor.polynomial import Poly
+
 class Rat(object):
     """
     Doctest:
@@ -34,7 +36,7 @@ class Rat(object):
     >>> r10 < ()
     Traceback (most recent call last):
         ...
-    TypeError: unorderable types: Rat() < tuple()
+    TypeError: '<' not supported between instances of 'Rat' and 'tuple'
 
     >>> Rat(1,2) + Rat(-1,3)
     1/6
@@ -48,6 +50,8 @@ class Rat(object):
     >>> from math import pi
     >>> approx(pi)
     355/113
+
+    >>> Rat(1) * Poly(Rat(1), Rat(0))
     """
     def __init__(self, arg1=0, arg2=1):
         """
@@ -59,7 +63,12 @@ class Rat(object):
         if isinstance(arg1, int):
             self._num = arg1
             # arg2 must be positive int:
-            self._den = _check(arg2, key='den')
+            try:
+                self._den = _check(arg2, key='den')
+            except TypeError:
+                print('TypeError:', type(arg1), arg1, type(arg2), arg2)
+                self._num = Rat(type(arg2)(arg1))
+                self._den = arg2
 
         elif isinstance(arg1, Rat):
             # arg2 must be Rat, int or float and arg2 != 0:
@@ -107,10 +116,14 @@ class Rat(object):
 
             except ValueError as err:
                 raise ValueError("Counldn't convert '%s' to Rat." % arg1)
+        elif isinstance(arg1, Poly):
+            self._num = arg1
+            self._den = Poly(arg2)
         elif isinstance(arg1, type(arg2)) or isinstance(arg2, type(arg1)):
             self._num = arg1
             self._den = arg2
         else:
+            print('Notimplemented:', type(arg1), arg1, type(arg2), arg2)
             raise NotImplementedError("Couldn't convert %s to Rat." % type(arg1))
 
     # getters and setters--------------------------------------
@@ -174,9 +187,6 @@ class Rat(object):
     # len(): deprecated
     #def __len__(self):
     #    return len(str(self))
-
-    def __call__(self, value):
-        return self._num(value) / self._den(value)
 
     # abs()
     def __abs__(self):
@@ -315,9 +325,12 @@ def _check(value, *, key):
                             type(value))
 
     elif key == 'den':
+        msg = 'Denominator must be positive int, %s given' % value
         if not isinstance(value, int) or value <= 0:
-            raise ValueError('Denominator must be positive '
-                             'int, %s given' % value)
+            raise TypeError(msg)
+        elif value <= 0:
+            raise ValueError(msg)
+
 
     elif key == 'Rat' or key == 'float':
         if not isinstance(value, (int, float, Rat)):
@@ -486,6 +499,10 @@ def quantity_level(n):
     if n == 0:
         return 0
     return math.floor(math.log10(abs(n))) + 1
+
+class RatFunc(Rat):
+    def __call__(self, value):
+        return self._num(value) / self._den(value)
 
 if __name__ == '__main__':
     import doctest

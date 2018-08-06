@@ -5,7 +5,7 @@
 
 __author__ = 'Clarence Zhuo'
 
-import rational
+import dminor.rational
 
 class Mat(object):
     """
