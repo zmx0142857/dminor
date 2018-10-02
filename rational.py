@@ -5,7 +5,7 @@
 
 __author__ = 'Clarence Zhuo'
 
-from dminor.polynomial import Poly
+from polynomial import Poly
 
 class Rat(object):
     """
