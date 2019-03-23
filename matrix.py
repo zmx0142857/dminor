@@ -292,13 +292,24 @@ class Mat(object):
     def __ne__(self, other):
         return not self == other
 
+    def __pos__(self, other):
+        # return copy of sel
+        return Mat(self)
+
+    def __neg__(self, other):
+        return Mat(lambda i,j: -self[i][j], self.rows(), self.cols())
+
     def __add__(self, other):
         if self.size() != other.size():
-            raise ValueError('Matrixes for adding must have '
-                             'same size.')
+            raise ValueError('Matrixes for adding must have same size.')
 
         return Mat(lambda i,j: self[i][j] + other[i][j], self.rows(), self.cols())
 
+    def __sub__(self, other):
+        if self.size() != other.size():
+            raise ValueError('Matrixes for subtracting must have same size.')
+
+        return Mat(lambda i,j: self[i][j] - other[i][j], self.rows(), self.cols())
     def __mul__(self, other):
         if self.cols() != other.rows():
             raise ValueError('cols of the first Mat must '

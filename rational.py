@@ -3,6 +3,8 @@
 
 """basic rational calculation"""
 
+# 用 hashtable 保存整数因子, 加速有理数乘除?
+
 __author__ = 'Clarence Zhuo'
 
 from polynomial import Poly
