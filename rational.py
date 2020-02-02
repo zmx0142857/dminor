@@ -125,7 +125,7 @@ class Rat(object):
             self._num = arg1
             self._den = arg2
         else:
-            print('Notimplemented:', type(arg1), arg1, type(arg2), arg2)
+            #print('Notimplemented:', type(arg1), arg1, type(arg2), arg2)
             raise NotImplementedError("Couldn't convert %s to Rat." % type(arg1))
 
     # getters and setters--------------------------------------
