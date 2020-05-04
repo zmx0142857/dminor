@@ -7,7 +7,7 @@
 
 __author__ = 'Clarence Zhuo'
 
-from polynomial import Poly
+from poly import Poly
 
 class Rat(object):
     """
